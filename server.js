@@ -5,8 +5,6 @@ const compression = require("compression");
 const usersRoutes = require("./routes/users-routes");
 const notesRoutes = require("./routes/notes-routes");
 const path = require("path");
-const fs = require("fs");
-const https = require("https");
 
 const app = express();
 app.use(express.json());
@@ -28,25 +26,12 @@ app.use((req, res, next) => {
 app.use("/api/users", usersRoutes);
 app.use("/api/notes", notesRoutes);
 
-const httpServer = httpServer.createServer(app);
-const httpsServer = https.createServer(
-  {
-    key: fs.readFileSync(
-      "/etc/letsencrypt/live/everydaynotesapp.net/privkey.pem"
-    ),
-    cert: fs.readFileSync(
-      "/etc/letsencrypt/live/everydaynotesapp.net/fullchain.pem"
-    ),
-  },
-  app
-);
-
 mongoose
   .connect(
     `mongodb+srv://${process.env.MONGODB_USER}:${process.env.MONGODB_KEY}@cluster0.hqwcf.mongodb.net/${process.env.MONGODB_DBNAME}?retryWrites=true&w=majority`
   )
   .then(() => {
-    httpsServer.listen(443);
+    app.listen(5000);
   })
   .catch((err) => {
     console.log(err);
