@@ -1,15 +1,17 @@
-require("dotenv").config();
-const User = require("../models/user");
-const Note = require("../models/note");
-const mongoose = require("mongoose");
-const jwt = require("jsonwebtoken");
-const bcrypt = require("bcryptjs");
+require('dotenv').config();
+const User = require('../models/user');
+const Note = require('../models/note');
+const mongoose = require('mongoose');
+const jwt = require('jsonwebtoken');
+const bcrypt = require('bcryptjs');
+const admin = require('firebase-admin');
 
 const getNotesByUser = async (req, res, next) => {
-  const userId = req.params.uid;
+  const auth = req.currentUser;
+  const reqUid = auth.uid;
   let notes;
   try {
-    notes = await Note.find({ creator: userId });
+    notes = await Note.find({ creator: reqUid });
   } catch (err) {
     return next(err);
   }
@@ -20,40 +22,24 @@ const getNotesByUser = async (req, res, next) => {
 };
 
 const signUpUser = async (req, res, next) => {
-  const { email, password } = req.body;
+  const { email, uid } = req.body;
   if (!email) {
-    return res.json({ status: "error", error: "Invalid email." });
+    return res.json({ status: 'error', error: 'Invalid email.' });
   }
-  if (!password || typeof password !== "string") {
-    return res.json({ status: "error", error: "Invalid password." });
+  if (!uid) {
+    return res.json({ status: 'error', error: 'User ID invalid' });
   }
-  if (password.length < 6) {
-    return res.json({
-      status: "error",
-      error: "Password must be at least 6 characters long.",
-    });
-  }
-  const hashedPassword = await bcrypt.hash(password, 10);
   const createdUser = new User({
-    email,
-    password: hashedPassword,
+    email: email,
+    uid: uid,
     notes: [],
   });
   try {
     await createdUser.save();
   } catch {
-    return res.json({ status: "error", error: "Creating user failed." });
+    return res.json({ status: 'error', error: 'Creating user failed.' });
   }
-
-  let token;
-  try {
-    token = jwt.sign({ userId: createdUser.id }, process.env.JWT_SECRET, {
-      expiresIn: "1h",
-    });
-  } catch {
-    throw new Error("Signing up failed.");
-  }
-  res.status(201).json({ userId: createdUser.id, token: token });
+  res.status(201).json({ userId: createdUser.uid });
 };
 
 const loginUser = async (req, res, next) => {
@@ -61,8 +47,8 @@ const loginUser = async (req, res, next) => {
   const user = await User.findOne({ email: email });
   if (!user) {
     return res.json({
-      status: "error",
-      error: "Invalid username or password.",
+      status: 'error',
+      error: 'Invalid username or password.',
     });
   }
   let verification;
@@ -70,24 +56,33 @@ const loginUser = async (req, res, next) => {
     verification = await bcrypt.compare(password, user.password);
   } catch (err) {
     return res.json({
-      status: "error",
-      message: "Invalid credentials. Try logging in again.",
+      status: 'error',
+      message: 'Invalid credentials. Try logging in again.',
     });
   }
   if (!verification) {
     return res.json({
-      status: "error",
-      message: "Invalid credentials. Try logging in again.",
+      status: 'error',
+      message: 'Invalid credentials. Try logging in again.',
     });
   }
   let token;
   try {
     token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET, {
-      expiresIn: "1h",
+      expiresIn: '1h',
     });
   } catch {
-    throw new Error("Logging in failed.");
+    throw new Error('Logging in failed.');
   }
+  let firebaseUser;
+  signInWithCustomToken(auth, token)
+    .then((userCred) => {
+      firebaseUser = userCred.user;
+    })
+    .catch((error) => {
+      const errorCode = error.code;
+      const errorMessage = error.message;
+    });
   return res.json({ userId: user.id, token: token });
 };
 
@@ -102,10 +97,10 @@ const changePassword = async (req, res, next) => {
       { _id: userId },
       { password: updatedPassword }
     );
-    return res.json({ status: "ok", message: "Password has been changed." });
+    return res.json({ status: 'ok', message: 'Password has been changed.' });
   } catch (error) {
     console.log(error);
-    return res.json({ status: "error", error: "Error has occurred." });
+    return res.json({ status: 'error', error: 'Error has occurred.' });
   }
 };
 

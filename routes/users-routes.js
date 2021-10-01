@@ -1,6 +1,7 @@
 const express = require('express');
 const auth = require('../middleware/auth');
 const usersController = require('../controllers/users-controller');
+const decodeToken = require('../middleware/firebase-auth');
 
 const router = express.Router();
 
@@ -11,7 +12,7 @@ router.post('/signup', usersController.signUpUser);
 router.post('/login', usersController.loginUser);
 
 //Protect routes below middleware
-router.use(auth);
+router.use(decodeToken);
 
 //See user homepage
 router.get('/:uid', usersController.getNotesByUser);

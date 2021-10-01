@@ -9,7 +9,7 @@ const noteSchema = new Schema({
   journal: { type: String, required: true },
   mood: { type: String, required: true },
   image: { type: String },
-  creator: { type: mongoose.Types.ObjectId, required: true, ref: 'User' },
+  creator: { type: String, required: true, ref: 'User' },
 });
 
 module.exports = mongoose.model('Note', noteSchema);
