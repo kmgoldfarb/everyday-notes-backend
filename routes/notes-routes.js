@@ -2,11 +2,12 @@ const express = require('express');
 const auth = require('../middleware/auth');
 const notesController = require('../controllers/notes-controller');
 const imageHandler = require('../middleware/image-handling');
+const decodeToken = require('../middleware/firebase-auth');
 
 const router = express.Router();
 
 // protect routes below auth middleware
-router.use(auth);
+router.use(decodeToken);
 
 router.get('/:nid', notesController.getNoteByNoteId);
 router.post(

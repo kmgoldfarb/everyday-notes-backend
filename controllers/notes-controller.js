@@ -1,19 +1,26 @@
-const mongoose = require("mongoose");
-const User = require("../models/user");
-const Note = require("../models/note");
+const mongoose = require('mongoose');
+const User = require('../models/user');
+const Note = require('../models/note');
 
 const getNoteByNoteId = async (req, res, next) => {
+  const auth = req.currentUser;
   const noteId = req.params.nid;
+
   let note;
-  try {
-    note = await Note.findById(noteId);
-  } catch (err) {
-    console.log(err);
+  if (auth) {
+    try {
+      note = await Note.findById(noteId);
+    } catch (err) {
+      console.log(err);
+      res.status(404).json({ message: 'Note not found.' });
+    }
   }
   res.json({ note: note });
 };
 
 const createNote = async (req, res, next) => {
+  const auth = req.currentUser;
+  const reqUid = auth.uid;
   const { date, action, gratitude, journal, image, mood, creator } = req.body;
   let createdNote;
   if (req.file) {
@@ -38,19 +45,11 @@ const createNote = async (req, res, next) => {
   }
   let user;
   try {
-    user = await User.findById(creator);
+    user = await User.findOne({ uid: reqUid });
   } catch (err) {
     res.status(404).json({
-      message: "Could not find user for provided ID.",
+      message: 'Could not find user.',
     });
-    return;
-  }
-
-  if (!user) {
-    res.status(404).json({
-      message: "Could not find user for provided ID.",
-    });
-    return;
   }
   try {
     const sess = await mongoose.startSession();
@@ -67,6 +66,7 @@ const createNote = async (req, res, next) => {
 };
 
 const editNote = async (req, res, next) => {
+  const auth = req.currentUser;
   const { date, action, gratitude, journal, mood, image } = req.body;
   const noteId = req.params.nid;
   let note;
@@ -77,8 +77,8 @@ const editNote = async (req, res, next) => {
   }
   console.log(note);
 
-  if (note.creator.toString() !== req.userData.userId) {
-    res.status(401).json({ message: "You are not allowed to edit this note." });
+  if (note.creator.toString() !== auth.uid) {
+    res.status(401).json({ message: 'You are not allowed to edit this note.' });
   }
   note.date = date;
   note.action = action;
@@ -89,16 +89,19 @@ const editNote = async (req, res, next) => {
     note.image = req.file.path;
   }
   console.log(note);
-  try {
-    await note.save();
-  } catch (err) {
-    console.log(err);
+  if (auth) {
+    try {
+      await note.save();
+    } catch (err) {
+      console.log(err);
+    }
   }
 
   res.status(200).json({ note: note.toObject({ getters: true }) });
 };
 
 const deleteNote = async (req, res, next) => {
+  const auth = req.currentUser;
   const noteId = req.params.nid;
   let note;
   try {
@@ -106,13 +109,15 @@ const deleteNote = async (req, res, next) => {
   } catch (err) {
     console.log(err);
   }
-  try {
-    await note.remove();
-  } catch (err) {
-    console.log(err);
-    return next(err);
+  if (auth) {
+    try {
+      await note.remove();
+    } catch (err) {
+      console.log(err);
+      return next(err);
+    }
   }
-  res.status(200).json({ message: "Deleted note." });
+  res.status(200).json({ message: 'Deleted note.' });
 };
 
 exports.getNoteByNoteId = getNoteByNoteId;
