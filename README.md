@@ -4,4 +4,3 @@ Everyday Notes is a place to practice reflection in your daily life. Upload dail
 
 This repository contains the Node and Express backend code for the app.
 
-<a href="https://everydaynotes.net">everydaynotes.net</a>
